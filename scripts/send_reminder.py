@@ -65,7 +65,7 @@ def build_message(guardia, apostatas, basura):
     basura_total = sum(q for q, _ in basura)
     gran_total = guardia_total + apostatas_total + basura_total
 
-    sep = "=" * 30
+    sep = "-" * 30
 
     lines = ["Periodo de Ningun", ""]
 
@@ -85,7 +85,7 @@ def build_message(guardia, apostatas, basura):
     lines.append(sep)
 
     lines.append(f"<b>Total general: {gran_total}</b>")
-    lines.append("-" * 40)
+    lines.append("=" * 40)
     lines.append("+1 Esqueleto Arquero")
     return "\n".join(lines)
 
