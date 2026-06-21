@@ -65,33 +65,41 @@ def build_message(guardia, apostatas, basura):
     basura_total = sum(q for q, _ in basura)
     gran_total = guardia_total + apostatas_total + basura_total
 
+    sep = "=" * 30
+
     lines = ["Tienes que hacer Periodo  ", "Periodo de Ningun", ""]
 
-    lines.append("Guardia de No Muertos")
+    lines.append("<b>Guardia de No Muertos</b>")
     for qty, name in guardia:
         lines.append(f"{qty} {name}")
     lines.append(f"Total: {guardia_total}")
 
     lines.append("")
-    lines.append("Apostatas de Myrkull")
+    lines.append(sep)
+    lines.append("")
+
+    lines.append("<b>Apostatas de Myrkull</b>")
     for qty, name in apostatas:
         lines.append(f"{qty} {name}")
     lines.append(f"Total: {apostatas_total}")
 
     lines.append("")
-    lines.append("Basura")
+    lines.append(sep)
+    lines.append("")
+
+    lines.append("<b>Basura</b>")
     for qty, name in basura:
         lines.append(f"{qty} {name}")
     lines.append(f"Total: {basura_total}")
 
     lines.append("")
-    lines.append(f"Total general: {gran_total}")
+    lines.append(f"<b>Total general: {gran_total}</b>")
     lines.append("----------------")
     lines.append("+1 Esqueleto arquero basico")
     return "\n".join(lines)
 
 def send_telegram(token, chat_id, message):
-    data = urllib.parse.urlencode({'chat_id': chat_id, 'text': message}).encode()
+    data = urllib.parse.urlencode({'chat_id': chat_id, 'text': message, 'parse_mode': 'HTML'}).encode()
     req = urllib.request.Request(
         f"https://api.telegram.org/bot{token}/sendMessage",
         data=data,
