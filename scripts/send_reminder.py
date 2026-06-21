@@ -69,28 +69,28 @@ def build_message(guardia, apostatas, basura):
 
     lines = ["Periodo de Ningun", ""]
 
-    lines.append(f"<b>Guardia de No Muertos ---> {guardia_total}</b>")
+    lines.append(f"*Guardia de No Muertos ---> {guardia_total}*")
     for qty, name in guardia:
         lines.append(f"{qty} {name}")
     lines.append(sep)
 
-    lines.append(f"<b>Apostatas de Myrkull ---> {apostatas_total}</b>")
+    lines.append(f"*Apostatas de Myrkull ---> {apostatas_total}*")
     for qty, name in apostatas:
         lines.append(f"{qty} {name}")
     lines.append(sep)
 
-    lines.append(f"<b>Basura ---> {basura_total}</b>")
+    lines.append(f"*Basura ---> {basura_total}*")
     for qty, name in basura:
         lines.append(f"{qty} {name}")
     lines.append(sep)
 
-    lines.append(f"<b>Total general: {gran_total}</b>")
+    lines.append(f"*Total general: {gran_total}*")
     lines.append("=" * 40)
     lines.append("+1 Esqueleto Arquero")
     return "\n".join(lines)
 
 def send_telegram(token, chat_id, message):
-    data = urllib.parse.urlencode({'chat_id': chat_id, 'text': message, 'parse_mode': 'HTML'}).encode()
+    data = urllib.parse.urlencode({'chat_id': chat_id, 'text': message, 'parse_mode': 'Markdown'}).encode()
     req = urllib.request.Request(
         f"https://api.telegram.org/bot{token}/sendMessage",
         data=data,
