@@ -9,10 +9,13 @@ import tempfile
 EXCEL_URL = "https://docs.google.com/spreadsheets/d/1fL7CZ_Td2JAb0Q5RlL_plOMLqrZGl6Ax1zbXJa_kGaE/export?format=xlsx"
 SHEET_NAME = " Nigun Grid Luin"
 
-SKIP_NAMES = {'Total', 'Velocidad de Reaccion', 'Aceleracion de Reaccion',
-              'Vista', 'Vista maxima', 'Vista máxima', 'm/s', 'm',
-              'Multiplicador de Defensa', 'Multiplicador de Evasion',
-              'Fuerza de stats', 'Fuerza de Cuerpo', 'Kilos', 'Largo'}
+SECTIONS = {
+    'Guardia de No Muertos': 'guardia',
+    'Apostatas de Myrkull': 'apostatas',
+    'Basura': 'basura',
+}
+
+SKIP_NAMES = {'Total'}
 
 def download_excel(filepath):
     urllib.request.urlretrieve(EXCEL_URL, filepath)
@@ -21,70 +24,61 @@ def is_valid_number(v):
     return isinstance(v, (int, float)) and not math.isnan(v)
 
 def parse_sections(ws):
-    guardia = []
-    apostatas = []
-    basura = []
+    data = {'guardia': [], 'apostatas': [], 'basura': []}
+    current_section = None
 
-    for row in ws.iter_rows(min_row=13, max_row=18, values_only=True):
+    for row in ws.iter_rows(min_row=1, values_only=True):
         row_list = list(row)
+        c23 = row_list[22] if len(row_list) > 22 else None
 
-        g_qty = row_list[27] if len(row_list) > 27 else None
-        g_name = row_list[28] if len(row_list) > 28 else None
-        a_name = row_list[33] if len(row_list) > 33 else None
-        b_qty = row_list[37] if len(row_list) > 37 else None
-        b_name = row_list[38] if len(row_list) > 38 else None
+        c23_str = str(c23).strip() if c23 is not None else None
 
-        # Guardia de No Muertos
-        if is_valid_number(g_qty) and g_name is not None:
-            gs = str(g_name).strip()
-            if gs not in SKIP_NAMES:
-                guardia.append((int(g_qty), gs))
+        # Check for section headers
+        if c23_str in SECTIONS:
+            current_section = SECTIONS[c23_str]
+            continue
 
-        # Apostatas de Myrkull
-        if a_name is not None:
-            astr = str(a_name).strip()
-            if astr not in SKIP_NAMES:
-                apostatas.append(astr)
+        # If not in a section, skip
+        if current_section is None:
+            continue
 
-        # Basura
-        if is_valid_number(b_qty) and b_name is not None:
-            bns = str(b_name).strip()
-            if bns not in SKIP_NAMES:
-                basura.append((int(b_qty), bns))
+        # If col 23 is a number, it's a data row
+        if is_valid_number(c23):
+            qty = int(c23)
+            name = str(row_list[23]).strip() if len(row_list) > 23 and row_list[23] is not None else ''
+            if name not in SKIP_NAMES and name:
+                data[current_section].append((qty, name))
+        else:
+            # Non-numeric in col 23 means section is over
+            # But could be a description row, only end if we hit next section header
+            if c23_str in SECTIONS:
+                current_section = SECTIONS[c23_str]
+            else:
+                # Description row or other text - just skip, section continues
+                pass
 
-    # Row 20 additional basura
-    for row in ws.iter_rows(min_row=20, max_row=20, values_only=True):
-        row_list = list(row)
-        if len(row_list) > 38:
-            bq = row_list[37]
-            bn = row_list[38]
-            if is_valid_number(bq) and bn is not None:
-                bns = str(bn).strip()
-                if bns not in SKIP_NAMES and all(b[1] != bns for b in basura):
-                    basura.append((int(bq), bns))
-
-    return guardia, apostatas, basura
+    return data['guardia'], data['apostatas'], data['basura']
 
 def build_message(guardia, apostatas, basura):
-    total = sum(q for q, _ in guardia)
+    guardia_total = sum(q for q, _ in guardia)
+    apostatas_total = sum(q for q, _ in apostatas)
+    basura_total = sum(q for q, _ in basura)
+
     lines = ["Tienes que hacer Periodo  ", "Periodo de Ningun", ""]
 
-    lines.append(f"Guardia de No Muertos: {total}")
+    lines.append(f"Guardia de No Muertos: {guardia_total}")
     for qty, name in guardia:
-        lines.append(f"- {qty} {name}")
+        lines.append(f"{qty} {name}")
 
     lines.append("")
-    lines.append("Apostatas de Myrkull:")
-    for name in apostatas:
-        lines.append(f"- {name}")
+    lines.append(f"Apostatas de Myrkull: {apostatas_total}")
+    for qty, name in apostatas:
+        lines.append(f"{qty} {name}")
 
     lines.append("")
-    lines.append("Basura:")
-    if basura:
-        for qty, name in basura:
-            lines.append(f"- {qty} {name}")
-    else:
-        lines.append("- 0")
+    lines.append(f"Basura: {basura_total}")
+    for qty, name in basura:
+        lines.append(f"{qty} {name}")
 
     lines.append("")
     lines.append("----------------")
