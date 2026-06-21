@@ -63,24 +63,29 @@ def build_message(guardia, apostatas, basura):
     guardia_total = sum(q for q, _ in guardia)
     apostatas_total = sum(q for q, _ in apostatas)
     basura_total = sum(q for q, _ in basura)
+    gran_total = guardia_total + apostatas_total + basura_total
 
     lines = ["Tienes que hacer Periodo  ", "Periodo de Ningun", ""]
 
-    lines.append(f"Guardia de No Muertos: {guardia_total}")
+    lines.append("Guardia de No Muertos")
     for qty, name in guardia:
         lines.append(f"{qty} {name}")
+    lines.append(f"Total: {guardia_total}")
 
     lines.append("")
-    lines.append(f"Apostatas de Myrkull: {apostatas_total}")
+    lines.append("Apostatas de Myrkull")
     for qty, name in apostatas:
         lines.append(f"{qty} {name}")
+    lines.append(f"Total: {apostatas_total}")
 
     lines.append("")
-    lines.append(f"Basura: {basura_total}")
+    lines.append("Basura")
     for qty, name in basura:
         lines.append(f"{qty} {name}")
+    lines.append(f"Total: {basura_total}")
 
     lines.append("")
+    lines.append(f"Total general: {gran_total}")
     lines.append("----------------")
     lines.append("+1 Esqueleto arquero basico")
     return "\n".join(lines)
