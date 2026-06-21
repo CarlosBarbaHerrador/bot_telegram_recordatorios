@@ -94,7 +94,11 @@ def build_message(guardia, apostatas, basura, ganancia, changed):
 
     sep = "-" * 30
 
-    today = date.today().strftime("%d/%m/%Y")
+    today = date.today().strftime("%d/%m/%Y (%A)")
+    dias = {"Monday": "Lunes", "Tuesday": "Martes", "Wednesday": "Miércoles",
+            "Thursday": "Jueves", "Friday": "Viernes", "Saturday": "Sábado", "Sunday": "Domingo"}
+    for en, es in dias.items():
+        today = today.replace(en, es)
     lines = [f"Periodo de Ningun - {today}", ""]
 
     if changed:
