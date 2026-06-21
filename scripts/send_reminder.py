@@ -7,6 +7,7 @@ import math
 import tempfile
 import time
 import hashlib
+from datetime import date
 
 EXCEL_URL = "https://docs.google.com/spreadsheets/d/1fL7CZ_Td2JAb0Q5RlL_plOMLqrZGl6Ax1zbXJa_kGaE/export?format=xlsx"
 SHEET_NAME = " Nigun Grid Luin"
@@ -93,7 +94,8 @@ def build_message(guardia, apostatas, basura, ganancia, changed):
 
     sep = "-" * 30
 
-    lines = ["Periodo de Ningun", ""]
+    today = date.today().strftime("%d/%m/%Y")
+    lines = [f"Periodo de Ningun - {today}", ""]
 
     if changed:
         lines.append("*⚠️ Cambios detectados en la hoja Nigun desde el último periodo*")
