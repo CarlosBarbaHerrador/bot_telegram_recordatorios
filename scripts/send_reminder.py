@@ -73,8 +73,6 @@ def build_message(guardia, apostatas, basura):
     for qty, name in guardia:
         lines.append(f"{qty} {name}")
     lines.append(f"Total: {guardia_total}")
-
-    lines.append("")
     lines.append(sep)
     lines.append("")
 
@@ -82,8 +80,6 @@ def build_message(guardia, apostatas, basura):
     for qty, name in apostatas:
         lines.append(f"{qty} {name}")
     lines.append(f"Total: {apostatas_total}")
-
-    lines.append("")
     lines.append(sep)
     lines.append("")
 
@@ -91,10 +87,11 @@ def build_message(guardia, apostatas, basura):
     for qty, name in basura:
         lines.append(f"{qty} {name}")
     lines.append(f"Total: {basura_total}")
-
+    lines.append(sep)
     lines.append("")
+
     lines.append(f"<b>Total general: {gran_total}</b>")
-    lines.append("----------------")
+    lines.append("-" * 40)
     lines.append("+1 Esqueleto arquero basico")
     return "\n".join(lines)
 
