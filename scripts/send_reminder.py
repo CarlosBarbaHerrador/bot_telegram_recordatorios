@@ -72,24 +72,24 @@ def build_message(guardia, apostatas, basura):
     lines.append("<b>Guardia de No Muertos</b>")
     for qty, name in guardia:
         lines.append(f"{qty} {name}")
-    lines.append(f"Total: {guardia_total}")
     lines.append("")
+    lines.append(f"Total: {guardia_total}")
     lines.append(sep)
     lines.append("")
 
     lines.append("<b>Apostatas de Myrkull</b>")
     for qty, name in apostatas:
         lines.append(f"{qty} {name}")
-    lines.append(f"Total: {apostatas_total}")
     lines.append("")
+    lines.append(f"Total: {apostatas_total}")
     lines.append(sep)
     lines.append("")
 
     lines.append("<b>Basura</b>")
     for qty, name in basura:
         lines.append(f"{qty} {name}")
-    lines.append(f"Total: {basura_total}")
     lines.append("")
+    lines.append(f"Total: {basura_total}")
     lines.append(sep)
     lines.append("")
 
