@@ -89,7 +89,7 @@ def build_message(guardia, apostatas, basura):
 
     lines.append(f"<b>Total general: {gran_total}</b>")
     lines.append("-" * 40)
-    lines.append("+1 Esqueleto arquero basico")
+    lines.append("+1 Esqueleto Arquero")
     return "\n".join(lines)
 
 def send_telegram(token, chat_id, message):
