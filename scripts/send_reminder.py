@@ -67,7 +67,7 @@ def build_message(guardia, apostatas, basura):
 
     sep = "=" * 30
 
-    lines = ["Tienes que hacer Periodo  ", "Periodo de Ningun", ""]
+    lines = ["Periodo de Ningun", ""]
 
     lines.append("<b>Guardia de No Muertos</b>")
     for qty, name in guardia:
