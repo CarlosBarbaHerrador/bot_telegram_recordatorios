@@ -6,6 +6,7 @@ import sys
 import math
 import tempfile
 import time
+import hashlib
 
 EXCEL_URL = "https://docs.google.com/spreadsheets/d/1fL7CZ_Td2JAb0Q5RlL_plOMLqrZGl6Ax1zbXJa_kGaE/export?format=xlsx"
 SHEET_NAME = " Nigun Grid Luin"
@@ -18,11 +19,21 @@ SECTIONS = {
 
 SKIP_NAMES = {'Total'}
 
+HASH_FILE = "sheet_hash.txt"
+
 def download_excel(filepath):
     urllib.request.urlretrieve(EXCEL_URL, filepath)
 
 def is_valid_number(v):
     return isinstance(v, (int, float)) and not math.isnan(v)
+
+def compute_sheet_hash(ws):
+    h = hashlib.sha256()
+    for row in ws.iter_rows(min_row=1, max_row=250, values_only=True):
+        for cell in row:
+            if cell is not None:
+                h.update(str(cell).encode("utf-8"))
+    return h.hexdigest()
 
 def parse_sections(ws):
     data = {'guardia': [], 'apostatas': [], 'basura': []}
@@ -31,31 +42,24 @@ def parse_sections(ws):
     for row in ws.iter_rows(min_row=1, values_only=True):
         row_list = list(row)
         c23 = row_list[22] if len(row_list) > 22 else None
-
         c23_str = str(c23).strip() if c23 is not None else None
 
-        # Check for section headers
         if c23_str in SECTIONS:
             current_section = SECTIONS[c23_str]
             continue
 
-        # If not in a section, skip
         if current_section is None:
             continue
 
-        # If col 23 is a number, it's a data row
         if is_valid_number(c23):
             qty = int(c23)
             name = str(row_list[23]).strip() if len(row_list) > 23 and row_list[23] is not None else ''
             if name not in SKIP_NAMES and name:
                 data[current_section].append((qty, name))
         else:
-            # Non-numeric in col 23 means section is over
-            # But could be a description row, only end if we hit next section header
             if c23_str in SECTIONS:
                 current_section = SECTIONS[c23_str]
             else:
-                # Description row or other text - just skip, section continues
                 pass
 
     return data['guardia'], data['apostatas'], data['basura']
@@ -65,7 +69,23 @@ def read_ganancia():
     with open(path, encoding="utf-8") as f:
         return f.read().strip()
 
-def build_message(guardia, apostatas, basura, ganancia):
+def read_previous_hash():
+    try:
+        if os.path.exists(HASH_FILE):
+            with open(HASH_FILE) as f:
+                return f.read().strip()
+    except Exception:
+        pass
+    return None
+
+def write_hash(h):
+    try:
+        with open(HASH_FILE, "w") as f:
+            f.write(h)
+    except Exception:
+        pass
+
+def build_message(guardia, apostatas, basura, ganancia, changed):
     guardia_total = sum(q for q, _ in guardia)
     apostatas_total = sum(q for q, _ in apostatas)
     basura_total = sum(q for q, _ in basura)
@@ -74,6 +94,10 @@ def build_message(guardia, apostatas, basura, ganancia):
     sep = "-" * 30
 
     lines = ["Periodo de Ningun", ""]
+
+    if changed:
+        lines.append("*⚠️ Cambios detectados en la hoja Nigun desde el último periodo*")
+        lines.append("")
 
     lines.append(f"*Guardia de No Muertos ---> {guardia_total}*")
     for qty, name in guardia:
@@ -106,7 +130,7 @@ def send_telegram(token, chat_id, message):
         return resp.status
 
 ERROR_LOCK = os.path.join(tempfile.gettempdir(), "periodo_error.lock")
-ERROR_COOLDOWN = 3600  # 1 hour
+ERROR_COOLDOWN = 3600
 
 def can_send_error():
     try:
@@ -163,6 +187,11 @@ def main():
     try:
         wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
         ws = wb[SHEET_NAME]
+
+        current_hash = compute_sheet_hash(ws)
+        previous_hash = read_previous_hash()
+        changed = previous_hash is not None and current_hash != previous_hash
+
         guardia, apostatas, basura = parse_sections(ws)
         wb.close()
     except Exception as e:
@@ -177,7 +206,9 @@ def main():
         send_error_alert(token, chat_id, msg)
         sys.exit(1)
 
-    message = build_message(guardia, apostatas, basura, read_ganancia())
+    write_hash(current_hash)
+
+    message = build_message(guardia, apostatas, basura, read_ganancia(), changed)
     print("Mensaje generado:")
     print(message)
 
