@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Enviar mensaje a Telegram
         run: |
-          mensaje=$'Tienes que hacer Periodo  \nPeriodo de Ningun\n+1 Esqueleto arquero basico'
+          mensaje=$'Tienes que hacer Periodo \n\n\nPeriodo de Ningun\n\n+1 Esqueleto arquero basico'
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             --data-urlencode "text=$mensaje"
