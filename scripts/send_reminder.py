@@ -59,7 +59,12 @@ def parse_sections(ws):
 
     return data['guardia'], data['apostatas'], data['basura']
 
-def build_message(guardia, apostatas, basura):
+def read_ganancia():
+    path = os.path.join(os.path.dirname(__file__), "..", "ganancia.txt")
+    with open(path, encoding="utf-8") as f:
+        return f.read().strip()
+
+def build_message(guardia, apostatas, basura, ganancia):
     guardia_total = sum(q for q, _ in guardia)
     apostatas_total = sum(q for q, _ in apostatas)
     basura_total = sum(q for q, _ in basura)
@@ -86,7 +91,7 @@ def build_message(guardia, apostatas, basura):
 
     lines.append(f"*Total general: {gran_total}*")
     lines.append("=" * 40)
-    lines.append("+1 Esqueleto Arquero")
+    lines.append(ganancia)
     return "\n".join(lines)
 
 def send_telegram(token, chat_id, message):
@@ -122,7 +127,7 @@ def main():
         print(f"Error leyendo Excel: {e}", file=sys.stderr)
         sys.exit(1)
 
-    message = build_message(guardia, apostatas, basura)
+    message = build_message(guardia, apostatas, basura, read_ganancia())
     print("Mensaje generado:")
     print(message)
 
