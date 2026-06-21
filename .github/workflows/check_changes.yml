@@ -1,0 +1,42 @@
+name: Detectar cambios en Excel
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: pip install openpyxl
+
+      - name: Restaurar hash anterior
+        id: cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: sheet_check_hash.txt
+          key: ningun-sheet-check-${{ github.run_id }}
+          restore-keys: |
+            ningun-sheet-check-
+
+      - name: Revisar cambios en Excel
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/check_changes.py
+
+      - name: Guardar hash para próxima ejecución
+        uses: actions/cache/save@v4
+        with:
+          path: sheet_check_hash.txt
+          key: ningun-sheet-check-${{ github.run_id }}
