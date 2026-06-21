@@ -9,36 +9,49 @@ import tempfile
 EXCEL_URL = "https://docs.google.com/spreadsheets/d/1fL7CZ_Td2JAb0Q5RlL_plOMLqrZGl6Ax1zbXJa_kGaE/export?format=xlsx"
 SHEET_NAME = " Nigun Grid Luin"
 
+SKIP_NAMES = {'Total', 'Velocidad de Reaccion', 'Aceleracion de Reaccion',
+              'Vista', 'Vista máxima', 'm/s', 'm', 'Multiplicador de Defensa',
+              'Multiplicador de Evasion', 'Fuerza de stats', 'Fuerza de Cuerpo',
+              'Kilos', 'Largo'}
+
 def download_excel(filepath):
     urllib.request.urlretrieve(EXCEL_URL, filepath)
 
+def is_valid_number(v):
+    return isinstance(v, (int, float)) and not math.isnan(v)
+
 def parse_undead(ws):
-    guardia = []
+    entries = []
     basura = []
 
     for row in ws.iter_rows(min_row=13, max_row=18, values_only=True):
         row_list = list(row)
 
-        # Guardia de No Muertos: col 28 (idx 27)=qty, col 29 (idx 28)=name
-        if len(row_list) > 28:
-            qty = row_list[27]
-            name = row_list[28]
-            if qty is not None and name is not None:
-                name_s = str(name).strip()
-                if name_s not in ('Total', 'Velocidad de Reaccion', 'Aceleracion de Reaccion',
-                                   'Vista', 'Vista máxima', 'm/s', 'm', 'Multiplicador de Defensa',
-                                   'Multiplicador de Evasion', 'Fuerza de stats', 'Fuerza de Cuerpo',
-                                   'Kilos', 'Largo') and isinstance(qty, (int, float)) and not math.isnan(qty):
-                    guardia.append((int(qty), name_s))
+        qty = row_list[27] if len(row_list) > 27 else None
+        guardia_name = row_list[28] if len(row_list) > 28 else None
+        apostata_name = row_list[33] if len(row_list) > 33 else None
+        bq = row_list[37] if len(row_list) > 37 else None
+        bn = row_list[38] if len(row_list) > 38 else None
 
-        # Basura: col 38 (idx 37)=qty, col 39 (idx 38)=name
-        if len(row_list) > 38:
-            bq = row_list[37]
-            bn = row_list[38]
-            if bq is not None and bn is not None:
-                bn_s = str(bn).strip()
-                if bn_s not in ('Total',) and isinstance(bq, (int, float)) and not math.isnan(bq):
-                    basura.append((int(bq), bn_s))
+        # Guardia + Apostata combined
+        if is_valid_number(qty):
+            names = []
+            if guardia_name is not None:
+                gs = str(guardia_name).strip()
+                if gs not in SKIP_NAMES:
+                    names.append(gs)
+            if apostata_name is not None:
+                astr = str(apostata_name).strip()
+                if astr not in SKIP_NAMES:
+                    names.append(astr)
+            if names:
+                entries.append((int(qty), " / ".join(names)))
+
+        # Basura
+        if is_valid_number(bq) and bn is not None:
+            bns = str(bn).strip()
+            if bns not in SKIP_NAMES:
+                basura.append((int(bq), bns))
 
     # Row 20 additional basura
     for row in ws.iter_rows(min_row=20, max_row=20, values_only=True):
@@ -46,22 +59,23 @@ def parse_undead(ws):
         if len(row_list) > 38:
             bq = row_list[37]
             bn = row_list[38]
-            if bq is not None and bn is not None:
-                bn_s = str(bn).strip()
-                if bn_s not in ('Total',) and isinstance(bq, (int, float)) and not math.isnan(bq):
-                    if all(b[1] != bn_s for b in basura):
-                        basura.append((int(bq), bn_s))
+            if is_valid_number(bq) and bn is not None:
+                bns = str(bn).strip()
+                if bns not in SKIP_NAMES and all(b[1] != bns for b in basura):
+                    basura.append((int(bq), bns))
 
-    return guardia, basura
+    return entries, basura
 
-def build_message(guardia, basura):
-    total = sum(q for q, _ in guardia)
+def build_message(entries, basura):
+    total = sum(q for q, _ in entries)
     lines = ["Tienes que hacer Periodo  ", "Periodo de Ningun", f"No muertos: {total}"]
-    for qty, name in guardia:
-        lines.append(f"- {qty}x {name}")
+    for qty, name in entries:
+        lines.append(f"- {qty} {name}")
     if basura:
         for qty, name in basura:
-            lines.append(f"Basura: {qty}x {name}")
+            lines.append(f"Basura: {qty} {name}")
+    lines.append("----------------")
+    lines.append("+1 Esqueleto arquero basico")
     return "\n".join(lines)
 
 def send_telegram(token, chat_id, message):
@@ -91,13 +105,13 @@ def main():
     try:
         wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
         ws = wb[SHEET_NAME]
-        guardia, basura = parse_undead(ws)
+        entries, basura = parse_undead(ws)
         wb.close()
     except Exception as e:
         print(f"Error leyendo Excel: {e}", file=sys.stderr)
         sys.exit(1)
 
-    message = build_message(guardia, basura)
+    message = build_message(entries, basura)
     print("Mensaje generado:")
     print(message)
 
