@@ -5,6 +5,7 @@ import os
 import sys
 import math
 import tempfile
+import time
 
 EXCEL_URL = "https://docs.google.com/spreadsheets/d/1fL7CZ_Td2JAb0Q5RlL_plOMLqrZGl6Ax1zbXJa_kGaE/export?format=xlsx"
 SHEET_NAME = " Nigun Grid Luin"
@@ -104,6 +105,45 @@ def send_telegram(token, chat_id, message):
     with urllib.request.urlopen(req) as resp:
         return resp.status
 
+ERROR_LOCK = os.path.join(tempfile.gettempdir(), "periodo_error.lock")
+ERROR_COOLDOWN = 3600  # 1 hour
+
+def can_send_error():
+    try:
+        if os.path.exists(ERROR_LOCK):
+            with open(ERROR_LOCK) as f:
+                last = float(f.read().strip())
+            if time.time() - last < ERROR_COOLDOWN:
+                return False
+        return True
+    except Exception:
+        return True
+
+def mark_error_sent():
+    try:
+        with open(ERROR_LOCK, "w") as f:
+            f.write(str(time.time()))
+    except Exception:
+        pass
+
+def send_error_alert(token, chat_id, error_msg):
+    if not can_send_error():
+        print("Error alert omitido (cooldown de 1h)", file=sys.stderr)
+        return
+    text = f"*⚠️ Error en Periodo Bot:*\n{error_msg}"
+    try:
+        data = urllib.parse.urlencode({'chat_id': chat_id, 'text': text, 'parse_mode': 'Markdown'}).encode()
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data=data,
+            headers={'Content-Type': 'application/x-www-form-urlencoded'}
+        )
+        with urllib.request.urlopen(req, timeout=15):
+            pass
+        mark_error_sent()
+    except Exception:
+        pass
+
 def main():
     token = os.environ.get('TELEGRAM_TOKEN')
     chat_id = os.environ.get('TELEGRAM_CHAT_ID')
@@ -115,7 +155,9 @@ def main():
     try:
         download_excel(filepath)
     except Exception as e:
-        print(f"Error descargando Excel: {e}", file=sys.stderr)
+        msg = f"No pude descargar el Excel: {e}"
+        print(msg, file=sys.stderr)
+        send_error_alert(token, chat_id, msg)
         sys.exit(1)
 
     try:
@@ -124,7 +166,15 @@ def main():
         guardia, apostatas, basura = parse_sections(ws)
         wb.close()
     except Exception as e:
-        print(f"Error leyendo Excel: {e}", file=sys.stderr)
+        msg = f"No pude leer el Excel (cambio de estructura?): {e}"
+        print(msg, file=sys.stderr)
+        send_error_alert(token, chat_id, msg)
+        sys.exit(1)
+
+    if not guardia and not apostatas and not basura:
+        msg = "No encontré ninguna sección de no-muertos en el Excel. ¿Cambiaste la estructura?"
+        print(msg, file=sys.stderr)
+        send_error_alert(token, chat_id, msg)
         sys.exit(1)
 
     message = build_message(guardia, apostatas, basura, read_ganancia())
