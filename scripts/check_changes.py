@@ -69,7 +69,7 @@ def main():
 
     body = {'itemName': f'items/{FILE_ID}'}
     if last_time:
-        body['filter'] = f'time > {last_time}'
+        body['filter'] = f'time > "{last_time}"'
 
     try:
         resp = session.post(
