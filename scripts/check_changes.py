@@ -90,6 +90,9 @@ def main():
         print("Sin actividad nueva.")
         sys.exit(0)
 
+    import json as _json
+    print("DEBUG primer activity:", _json.dumps(activities[0], indent=2)[:500])
+
     latest_time = None
     for act in activities:
         ts = act.get('timestamp', '')
@@ -110,27 +113,30 @@ def main():
             continue
 
         actors = act.get('actors', [])
-        emails = set()
+        who = None
         for actor in actors:
             user = actor.get('user', {})
             known = user.get('knownUser', {})
             email = known.get('emailAddress')
             if email:
-                emails.add(email)
-            elif 'unknownUser' in user:
-                emails.add(None)
+                who = email
+                break
+            if any(k in user for k in ('unknownUser', 'anonymousUser', 'unauthenticated')):
+                who = None
+                break
 
-        for email in emails:
-            if email == MY_EMAIL:
-                continue
-            if email is None:
-                msg = "🔔 Alguien ha modificado la hoja de personaje"
-            else:
-                msg = f"👤 *{email}* ha modificado la hoja de personaje"
+        if who == MY_EMAIL:
+            print(f"Edit detectado de mi usuario ({who}), omitido.")
+            continue
 
-            print(f"Notificando: {msg}")
-            send_telegram(token, chat_id, msg)
-            notified = True
+        if who:
+            msg = f"👤 *{who}* ha modificado la hoja de personaje"
+        else:
+            msg = "🔔 Alguien (anónimo) ha modificado la hoja de personaje"
+
+        print(f"Notificando: {msg}")
+        send_telegram(token, chat_id, msg)
+        notified = True
 
     if not notified:
         print("Actividad detectada pero solo de mi usuario o sin relevancia.")
