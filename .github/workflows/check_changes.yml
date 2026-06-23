@@ -18,25 +18,26 @@ jobs:
           python-version: '3.12'
 
       - name: Instalar dependencias
-        run: pip install openpyxl
+        run: pip install openpyxl google-auth requests
 
-      - name: Restaurar hash anterior
+      - name: Restaurar última actividad
         id: cache-restore
         uses: actions/cache/restore@v4
         with:
-          path: sheet_check_hash.txt
-          key: ningun-sheet-check-${{ github.run_id }}
+          path: last_activity_time.txt
+          key: ningun-sheet-activity-${{ github.run_id }}
           restore-keys: |
-            ningun-sheet-check-
+            ningun-sheet-activity-
 
       - name: Revisar cambios en Excel
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
         run: python scripts/check_changes.py
 
-      - name: Guardar hash para próxima ejecución
+      - name: Guardar última actividad
         uses: actions/cache/save@v4
         with:
-          path: sheet_check_hash.txt
-          key: ningun-sheet-check-${{ github.run_id }}
+          path: last_activity_time.txt
+          key: ningun-sheet-activity-${{ github.run_id }}
