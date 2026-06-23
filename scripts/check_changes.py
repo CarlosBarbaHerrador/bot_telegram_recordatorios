@@ -8,7 +8,7 @@ from google.oauth2.service_account import Credentials
 
 SCOPES = ['https://www.googleapis.com/auth/drive.activity.readonly']
 FILE_ID = "1fL7CZ_Td2JAb0Q5RlL_plOMLqrZGl6Ax1zbXJa_kGaE"
-MY_EMAIL = "carlillosbarba@gmail.com"
+MY_EMAIL = "nadie@nadie.com"
 LAST_TIME_FILE = "last_activity_time.txt"
 
 def get_credentials():
