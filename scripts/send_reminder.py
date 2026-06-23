@@ -99,11 +99,12 @@ def build_message(guardia, apostatas, basura, ganancia, changed):
             "Thursday": "Jueves", "Friday": "Viernes", "Saturday": "Sábado", "Sunday": "Domingo"}
     for en, es in dias.items():
         today = today.replace(en, es)
-    lines = [f"Periodo de Ningun - {today}", ""]
-
+    lines = []
     if changed:
         lines.append("*⚠️ Cambios detectados en la hoja Nigun desde el último periodo*")
         lines.append("")
+    lines.append(f"Periodo de Ningun - {today}")
+    lines.append("")
 
     lines.append(f"*Guardia de No Muertos ---> {guardia_total}*")
     for qty, name in guardia:
