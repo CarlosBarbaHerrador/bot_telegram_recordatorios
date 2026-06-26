@@ -22,8 +22,18 @@ SKIP_NAMES = {'Total'}
 
 HASH_FILE = "sheet_hash.txt"
 
-def download_excel(filepath):
-    urllib.request.urlretrieve(EXCEL_URL, filepath)
+def download_excel(filepath, retries=3, delay=5):
+    for attempt in range(retries):
+        try:
+            urllib.request.urlretrieve(EXCEL_URL, filepath)
+            return
+        except Exception as e:
+            if attempt < retries - 1:
+                wait = delay * (2 ** attempt)
+                print(f"Error descargando (intento {attempt+1}/{retries}): {e}. Reintentando en {wait}s...", file=sys.stderr)
+                time.sleep(wait)
+            else:
+                raise
 
 def is_valid_number(v):
     return isinstance(v, (int, float)) and not math.isnan(v)

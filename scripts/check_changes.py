@@ -5,13 +5,24 @@ import os
 import sys
 import hashlib
 import tempfile
+import time
 
 EXCEL_URL = "https://docs.google.com/spreadsheets/d/1fL7CZ_Td2JAb0Q5RlL_plOMLqrZGl6Ax1zbXJa_kGaE/export?format=xlsx"
 SHEET_NAME = " Nigun Grid Luin"
 HASH_FILE = "sheet_check_hash.txt"
 
-def download_excel(filepath):
-    urllib.request.urlretrieve(EXCEL_URL, filepath)
+def download_excel(filepath, retries=3, delay=5):
+    for attempt in range(retries):
+        try:
+            urllib.request.urlretrieve(EXCEL_URL, filepath)
+            return
+        except Exception as e:
+            if attempt < retries - 1:
+                wait = delay * (2 ** attempt)
+                print(f"Error descargando (intento {attempt+1}/{retries}): {e}. Reintentando en {wait}s...", file=sys.stderr)
+                time.sleep(wait)
+            else:
+                raise
 
 def compute_sheet_hash(ws):
     h = hashlib.sha256()
