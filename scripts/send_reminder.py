@@ -9,6 +9,9 @@ import time
 import hashlib
 from datetime import date
 
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 EXCEL_URL = "https://docs.google.com/spreadsheets/d/1fL7CZ_Td2JAb0Q5RlL_plOMLqrZGl6Ax1zbXJa_kGaE/export?format=xlsx"
 SHEET_NAME = " Nigun Grid Luin"
 
@@ -16,6 +19,7 @@ SECTIONS = {
     'Guardia de No Muertos': 'guardia',
     'Apostatas de Myrkull': 'apostatas',
     'Basura': 'basura',
+    'Mis Levantados': 'levantados',
 }
 
 SKIP_NAMES = {'Total'}
@@ -47,7 +51,7 @@ def compute_sheet_hash(ws):
     return h.hexdigest()
 
 def parse_sections(ws):
-    data = {'guardia': [], 'apostatas': [], 'basura': []}
+    section_data = {'guardia': [], 'apostatas': [], 'basura': [], 'levantados': []}
     current_section = None
 
     for row in ws.iter_rows(min_row=1, values_only=True):
@@ -66,14 +70,14 @@ def parse_sections(ws):
             qty = int(c23)
             name = str(row_list[23]).strip() if len(row_list) > 23 and row_list[23] is not None else ''
             if name not in SKIP_NAMES and name:
-                data[current_section].append((qty, name))
-        else:
-            if c23_str in SECTIONS:
-                current_section = SECTIONS[c23_str]
-            else:
-                pass
+                section_data[current_section].append((qty, name))
 
-    return data['guardia'], data['apostatas'], data['basura']
+    merged = {}
+    for section in section_data.values():
+        for qty, name in section:
+            merged[name] = merged.get(name, 0) + qty
+
+    return merged
 
 def read_ganancia():
     path = os.path.join(os.path.dirname(__file__), "..", "ganancia.txt")
@@ -96,11 +100,9 @@ def write_hash(h):
     except Exception:
         pass
 
-def build_message(guardia, apostatas, basura, ganancia, changed):
-    guardia_total = sum(q for q, _ in guardia)
-    apostatas_total = sum(q for q, _ in apostatas)
-    basura_total = sum(q for q, _ in basura)
-    gran_total = guardia_total + apostatas_total + basura_total
+def build_message(merged, ganancia, changed):
+    gran_total = sum(merged.values())
+    sorted_items = sorted(merged.items(), key=lambda x: x[1], reverse=True)
 
     sep = "-" * 30
 
@@ -116,22 +118,11 @@ def build_message(guardia, apostatas, basura, ganancia, changed):
     lines.append(f"Periodo de Ningun - {today}")
     lines.append("")
 
-    lines.append(f"*Guardia de No Muertos ---> {guardia_total}*")
-    for qty, name in guardia:
+    for name, qty in sorted_items:
         lines.append(f"{qty} {name}")
     lines.append(sep)
 
-    lines.append(f"*Apostatas de Myrkull ---> {apostatas_total}*")
-    for qty, name in apostatas:
-        lines.append(f"{qty} {name}")
-    lines.append(sep)
-
-    lines.append(f"*Basura ---> {basura_total}*")
-    for qty, name in basura:
-        lines.append(f"{qty} {name}")
-    lines.append(sep)
-
-    lines.append(f"*Total general: {gran_total}*")
+    lines.append(f"*Total: {gran_total}*")
     lines.append("=" * 40)
     lines.append(ganancia)
     return "\n".join(lines)
@@ -185,7 +176,19 @@ def send_error_alert(token, chat_id, error_msg):
     except Exception:
         pass
 
+def load_dotenv():
+    path = os.path.join(os.path.dirname(__file__), "..", ".env")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    key, _, val = line.partition("=")
+                    if key not in os.environ:
+                        os.environ[key.strip()] = val.strip()
+
 def main():
+    load_dotenv()
     token = os.environ.get('TELEGRAM_TOKEN')
     chat_id = os.environ.get('TELEGRAM_CHAT_ID')
     if not token or not chat_id:
@@ -209,7 +212,7 @@ def main():
         previous_hash = read_previous_hash()
         changed = previous_hash is not None and current_hash != previous_hash
 
-        guardia, apostatas, basura = parse_sections(ws)
+        merged = parse_sections(ws)
         wb.close()
     except Exception as e:
         msg = f"No pude leer el Excel (cambio de estructura?): {e}"
@@ -217,7 +220,7 @@ def main():
         send_error_alert(token, chat_id, msg)
         sys.exit(1)
 
-    if not guardia and not apostatas and not basura:
+    if not merged:
         msg = "No encontré ninguna sección de no-muertos en el Excel. ¿Cambiaste la estructura?"
         print(msg, file=sys.stderr)
         send_error_alert(token, chat_id, msg)
@@ -225,7 +228,7 @@ def main():
 
     write_hash(current_hash)
 
-    message = build_message(guardia, apostatas, basura, read_ganancia(), changed)
+    message = build_message(merged, read_ganancia(), changed)
     print("Mensaje generado:")
     print(message)
 
