@@ -1,0 +1,30 @@
+name: Backup Supabase
+
+on:
+  schedule:
+    - cron: '0 0 */4 * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Backup regions
+        run: |
+          curl -s "https://rmfoquszgkuntfhlkhcd.supabase.co/rest/v1/regions?select=*" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtZm9xdXN6Z2t1bnRmaGxraGNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzA5OTQsImV4cCI6MjA5NjI0Njk5NH0.rqiLZZ0p2lj2B_DwcZNUfutxDPh0dOUMMYclPMwPzLg" \
+            -o regions_backup.json
+
+      - name: Backup pois
+        run: |
+          curl -s "https://rmfoquszgkuntfhlkhcd.supabase.co/rest/v1/pois?select=*" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtZm9xdXN6Z2t1bnRmaGxraGNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzA5OTQsImV4cCI6MjA5NjI0Njk5NH0.rqiLZZ0p2lj2B_DwcZNUfutxDPh0dOUMMYclPMwPzLg" \
+            -o pois_backup.json
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-backup-${{ github.run_id }}
+          path: |
+            regions_backup.json
+            pois_backup.json
