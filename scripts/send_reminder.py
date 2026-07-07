@@ -79,6 +79,24 @@ def parse_sections(ws):
 
     return merged
 
+CURRENCY_KEYWORDS = {'Oro', 'Plata', 'Bronce'}
+
+def parse_currency(ws):
+    currencies = {}
+    for row in ws.iter_rows(min_row=1, values_only=True):
+        row_list = list(row)
+        for i, cell in enumerate(row_list):
+            if cell is not None and str(cell).strip() in CURRENCY_KEYWORDS:
+                ctype = str(cell).strip()
+                amount = None
+                if i > 0 and is_valid_number(row_list[i-1]):
+                    amount = int(row_list[i-1])
+                elif i + 1 < len(row_list) and is_valid_number(row_list[i+1]):
+                    amount = int(row_list[i+1])
+                if amount is not None:
+                    currencies[ctype] = amount
+    return currencies
+
 def read_ganancia():
     path = os.path.join(os.path.dirname(__file__), "..", "ganancia.txt")
     with open(path, encoding="utf-8") as f:
@@ -100,7 +118,7 @@ def write_hash(h):
     except Exception:
         pass
 
-def build_message(merged, ganancia, changed):
+def build_message(merged, currencies, ganancia, changed):
     gran_total = sum(merged.values())
     sorted_items = sorted(merged.items(), key=lambda x: x[1], reverse=True)
 
@@ -111,6 +129,30 @@ def build_message(merged, ganancia, changed):
             "Thursday": "Jueves", "Friday": "Viernes", "Saturday": "Sábado", "Sunday": "Domingo"}
     for en, es in dias.items():
         today = today.replace(en, es)
+
+    ganancia_lines = ganancia.split('\n')
+    undead_gains = []
+    dinero_gains = {}
+    in_money = False
+    for l in ganancia_lines:
+        ls = l.strip()
+        if ls == "--- Dinero ---":
+            in_money = True
+            continue
+        if in_money:
+            for kw in CURRENCY_KEYWORDS:
+                if kw in ls:
+                    parts = ls.split()
+                    for part in parts:
+                        try:
+                            dinero_gains[kw] = dinero_gains.get(kw, 0) + int(part)
+                        except ValueError:
+                            pass
+                    break
+        else:
+            if ls:
+                undead_gains.append(ls)
+
     lines = []
     if changed:
         lines.append("*⚠️ Cambios detectados en la hoja Nigun desde el último periodo*")
@@ -118,13 +160,42 @@ def build_message(merged, ganancia, changed):
     lines.append(f"Periodo de Ningun - {today}")
     lines.append("")
 
+    lines.append("---- No Muertos ----")
     for name, qty in sorted_items:
         lines.append(f"{qty} {name}")
     lines.append(sep)
+    lines.append(f"Total: {gran_total}")
+    lines.append("")
 
-    lines.append(f"*Total: {gran_total}*")
+    if currencies:
+        lines.append("---- Dinero ----")
+        for ctype in ('Oro', 'Plata', 'Bronce'):
+            if ctype in currencies:
+                lines.append(f"{currencies[ctype]} de {ctype}")
     lines.append("=" * 40)
-    lines.append(ganancia)
+
+    lines.append("---- No Muertos ----")
+    for l in undead_gains:
+        lines.append(l)
+    lines.append("")
+
+    if dinero_gains:
+        lines.append("---- Dinero ----")
+        for ctype in ('Oro', 'Plata', 'Bronce'):
+            if ctype in dinero_gains:
+                lines.append(f"+ {dinero_gains[ctype]} {ctype}")
+
+    if currencies:
+        lines.append("---- Total Dinero ----")
+        combined = {}
+        for ctype in currencies:
+            combined[ctype] = currencies[ctype]
+        for ctype, amount in dinero_gains.items():
+            combined[ctype] = combined.get(ctype, 0) + amount
+        for ctype in ('Oro', 'Plata', 'Bronce'):
+            if ctype in combined:
+                lines.append(f"{combined[ctype]} de {ctype}")
+
     return "\n".join(lines)
 
 def send_telegram(token, chat_id, message):
@@ -193,7 +264,7 @@ def should_run_today():
     now = time.gmtime()
     weekday = now.tm_wday
     hour = now.tm_hour
-    if weekday not in (0, 2, 5):
+    if weekday not in (6, 1, 4):
         return False
     if hour < 13:
         return False
@@ -243,6 +314,7 @@ def main():
         changed = previous_hash is not None and current_hash != previous_hash
 
         merged = parse_sections(ws)
+        currencies = parse_currency(ws)
         wb.close()
     except Exception as e:
         msg = f"No pude leer el Excel (cambio de estructura?): {e}"
@@ -258,7 +330,7 @@ def main():
 
     write_hash(current_hash)
 
-    message = build_message(merged, read_ganancia(), changed)
+    message = build_message(merged, currencies, read_ganancia(), changed)
     print("Mensaje generado:")
     print(message)
 
