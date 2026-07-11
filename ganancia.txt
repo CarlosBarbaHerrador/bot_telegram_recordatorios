@@ -2,4 +2,4 @@
 + 1 Bibliotecario Apostata
 + 1 Esqueleto Arquero
 --- Dinero ---
-+ 20 Oro
++ 25 Oro
