@@ -6,7 +6,6 @@ import sys
 import math
 import tempfile
 import time
-import hashlib
 from datetime import date
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -24,8 +23,6 @@ SECTIONS = {
 
 SKIP_NAMES = {'Total'}
 
-HASH_FILE = "sheet_hash.txt"
-
 def download_excel(filepath, retries=3, delay=5):
     for attempt in range(retries):
         try:
@@ -41,14 +38,6 @@ def download_excel(filepath, retries=3, delay=5):
 
 def is_valid_number(v):
     return isinstance(v, (int, float)) and not math.isnan(v)
-
-def compute_sheet_hash(ws):
-    h = hashlib.sha256()
-    for row in ws.iter_rows(min_row=1, max_row=250, values_only=True):
-        for cell in row:
-            if cell is not None:
-                h.update(str(cell).encode("utf-8"))
-    return h.hexdigest()
 
 def parse_sections(ws):
     section_data = {'guardia': [], 'apostatas': [], 'basura': [], 'levantados': []}
@@ -102,23 +91,7 @@ def read_ganancia():
     with open(path, encoding="utf-8") as f:
         return f.read().strip()
 
-def read_previous_hash():
-    try:
-        if os.path.exists(HASH_FILE):
-            with open(HASH_FILE) as f:
-                return f.read().strip()
-    except Exception:
-        pass
-    return None
-
-def write_hash(h):
-    try:
-        with open(HASH_FILE, "w") as f:
-            f.write(h)
-    except Exception:
-        pass
-
-def build_message(merged, currencies, ganancia, changed):
+def build_message(merged, currencies, ganancia):
     gran_total = sum(merged.values())
     sorted_items = sorted(merged.items(), key=lambda x: x[1], reverse=True)
 
@@ -154,9 +127,6 @@ def build_message(merged, currencies, ganancia, changed):
                 undead_gains.append(ls)
 
     lines = []
-    if changed:
-        lines.append("*⚠️ Cambios detectados en la hoja Nigun desde el último periodo*")
-        lines.append("")
     lines.append(f"Periodo de Ningun - {today}")
     lines.append("")
 
@@ -309,10 +279,6 @@ def main():
         wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
         ws = wb[SHEET_NAME]
 
-        current_hash = compute_sheet_hash(ws)
-        previous_hash = read_previous_hash()
-        changed = previous_hash is not None and current_hash != previous_hash
-
         merged = parse_sections(ws)
         currencies = parse_currency(ws)
         wb.close()
@@ -328,9 +294,7 @@ def main():
         send_error_alert(token, chat_id, msg)
         sys.exit(1)
 
-    write_hash(current_hash)
-
-    message = build_message(merged, currencies, read_ganancia(), changed)
+    message = build_message(merged, currencies, read_ganancia())
     print("Mensaje generado:")
     print(message)
 

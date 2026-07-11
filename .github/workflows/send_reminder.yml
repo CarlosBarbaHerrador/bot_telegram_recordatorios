@@ -20,23 +20,8 @@ jobs:
       - name: Instalar dependencias
         run: pip install openpyxl
 
-      - name: Restaurar hash anterior
-        id: cache-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: sheet_hash.txt
-          key: ningun-sheet-hash-${{ github.run_id }}
-          restore-keys: |
-            ningun-sheet-hash-
-
       - name: Leer Excel y enviar mensaje
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python scripts/send_reminder.py
-
-      - name: Guardar hash para próxima ejecución
-        uses: actions/cache/save@v4
-        with:
-          path: sheet_hash.txt
-          key: ningun-sheet-hash-${{ github.run_id }}
