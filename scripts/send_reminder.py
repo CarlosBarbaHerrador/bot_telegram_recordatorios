@@ -228,8 +228,6 @@ def load_dotenv():
                     if key not in os.environ:
                         os.environ[key.strip()] = val.strip()
 
-SENT_DAILY_LOCK = os.path.join(tempfile.gettempdir(), "periodo_sent_today")
-
 def should_run_today():
     now = time.gmtime()
     weekday = now.tm_wday
@@ -238,23 +236,7 @@ def should_run_today():
         return False
     if hour < 13:
         return False
-    try:
-        if os.path.exists(SENT_DAILY_LOCK):
-            with open(SENT_DAILY_LOCK) as f:
-                day = f.read().strip()
-            if day == str(now.tm_yday):
-                return False
-    except Exception:
-        pass
     return True
-
-def mark_sent_today():
-    try:
-        now = time.gmtime()
-        with open(SENT_DAILY_LOCK, "w") as f:
-            f.write(str(now.tm_yday))
-    except Exception:
-        pass
 
 def main():
     if not should_run_today():
@@ -300,7 +282,6 @@ def main():
 
     status = send_telegram(token, chat_id, message)
     print(f"Telegram response: {status}")
-    mark_sent_today()
 
 if __name__ == '__main__':
     main()
