@@ -1,11 +1,11 @@
 import urllib.request
 import urllib.parse
-import openpyxl
+import json
 import os
 import sys
+import time
 import math
 import tempfile
-import time
 from datetime import date
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -22,53 +22,53 @@ SECTIONS = {
 }
 
 SKIP_NAMES = {'Total'}
+CURRENCY_KEYWORDS = {'Oro', 'Plata', 'Bronce'}
 
-def download_excel(filepath, retries=3, delay=5):
-    for attempt in range(retries):
-        try:
-            urllib.request.urlretrieve(EXCEL_URL, filepath)
-            return
-        except Exception as e:
-            if attempt < retries - 1:
-                wait = delay * (2 ** attempt)
-                print(f"Error descargando (intento {attempt+1}/{retries}): {e}. Reintentando en {wait}s...", file=sys.stderr)
-                time.sleep(wait)
-            else:
-                raise
+
+def fetch_json(url):
+    with urllib.request.urlopen(url) as r:
+        return json.loads(r.read().decode())
+
+
+def post_json(url, data):
+    body = json.dumps(data).encode()
+    req = urllib.request.Request(url, data=body, headers={'Content-Type': 'application/json'})
+    with urllib.request.urlopen(req) as r:
+        return json.loads(r.read().decode())
+
+
+def download_excel(filepath):
+    urllib.request.urlretrieve(EXCEL_URL, filepath)
+
 
 def is_valid_number(v):
     return isinstance(v, (int, float)) and not math.isnan(v)
 
+
 def parse_sections(ws):
+    import openpyxl
     section_data = {'guardia': [], 'apostatas': [], 'basura': [], 'levantados': []}
     current_section = None
-
     for row in ws.iter_rows(min_row=1, values_only=True):
         row_list = list(row)
         c23 = row_list[22] if len(row_list) > 22 else None
         c23_str = str(c23).strip() if c23 is not None else None
-
         if c23_str in SECTIONS:
             current_section = SECTIONS[c23_str]
             continue
-
         if current_section is None:
             continue
-
         if is_valid_number(c23):
             qty = int(c23)
             name = str(row_list[23]).strip() if len(row_list) > 23 and row_list[23] is not None else ''
             if name not in SKIP_NAMES and name:
                 section_data[current_section].append((qty, name))
-
     merged = {}
     for section in section_data.values():
         for qty, name in section:
             merged[name] = merged.get(name, 0) + qty
-
     return merged
 
-CURRENCY_KEYWORDS = {'Oro', 'Plata', 'Bronce'}
 
 def parse_currency(ws):
     currencies = {}
@@ -86,17 +86,17 @@ def parse_currency(ws):
                     currencies[ctype] = amount
     return currencies
 
+
 def read_ganancia():
     path = os.path.join(os.path.dirname(__file__), "..", "ganancia.txt")
     with open(path, encoding="utf-8") as f:
         return f.read().strip()
 
+
 def build_message(merged, currencies, ganancia):
     gran_total = sum(merged.values())
     sorted_items = sorted(merged.items(), key=lambda x: x[1], reverse=True)
-
     sep = "-" * 30
-
     today = date.today().strftime("%d/%m/%Y (%A)")
     dias = {"Monday": "Lunes", "Tuesday": "Martes", "Wednesday": "Miércoles",
             "Thursday": "Jueves", "Friday": "Viernes", "Saturday": "Sábado", "Sunday": "Domingo"}
@@ -129,32 +129,27 @@ def build_message(merged, currencies, ganancia):
     lines = []
     lines.append(f"Periodo de Ningun - {today}")
     lines.append("")
-
     lines.append("---- No Muertos ----")
     for name, qty in sorted_items:
         lines.append(f"{qty} {name}")
     lines.append(sep)
     lines.append(f"Total: {gran_total}")
     lines.append("")
-
     if currencies:
         lines.append("---- Dinero ----")
         for ctype in ('Oro', 'Plata', 'Bronce'):
             if ctype in currencies:
                 lines.append(f"{currencies[ctype]} de {ctype}")
     lines.append("=" * 40)
-
     lines.append("---- No Muertos ----")
     for l in undead_gains:
         lines.append(l)
     lines.append("")
-
     if dinero_gains:
         lines.append("---- Dinero ----")
         for ctype in ('Oro', 'Plata', 'Bronce'):
             if ctype in dinero_gains:
                 lines.append(f"+ {dinero_gains[ctype]} {ctype}")
-
     if currencies:
         lines.append("---- Total Dinero ----")
         combined = {}
@@ -165,11 +160,11 @@ def build_message(merged, currencies, ganancia):
         for ctype in ('Oro', 'Plata', 'Bronce'):
             if ctype in combined:
                 lines.append(f"{combined[ctype]} de {ctype}")
-
     return "\n".join(lines)
 
-def send_telegram(token, chat_id, message):
-    data = urllib.parse.urlencode({'chat_id': chat_id, 'text': message, 'parse_mode': 'Markdown'}).encode()
+
+def send_message(token, chat_id, text):
+    data = urllib.parse.urlencode({'chat_id': chat_id, 'text': text, 'parse_mode': 'Markdown'}).encode()
     req = urllib.request.Request(
         f"https://api.telegram.org/bot{token}/sendMessage",
         data=data,
@@ -178,44 +173,6 @@ def send_telegram(token, chat_id, message):
     with urllib.request.urlopen(req) as resp:
         return resp.status
 
-ERROR_LOCK = os.path.join(tempfile.gettempdir(), "periodo_error.lock")
-ERROR_COOLDOWN = 3600
-
-def can_send_error():
-    try:
-        if os.path.exists(ERROR_LOCK):
-            with open(ERROR_LOCK) as f:
-                last = float(f.read().strip())
-            if time.time() - last < ERROR_COOLDOWN:
-                return False
-        return True
-    except Exception:
-        return True
-
-def mark_error_sent():
-    try:
-        with open(ERROR_LOCK, "w") as f:
-            f.write(str(time.time()))
-    except Exception:
-        pass
-
-def send_error_alert(token, chat_id, error_msg):
-    if not can_send_error():
-        print("Error alert omitido (cooldown de 1h)", file=sys.stderr)
-        return
-    text = f"*⚠️ Error en Periodo Bot:*\n{error_msg}"
-    try:
-        data = urllib.parse.urlencode({'chat_id': chat_id, 'text': text, 'parse_mode': 'Markdown'}).encode()
-        req = urllib.request.Request(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            data=data,
-            headers={'Content-Type': 'application/x-www-form-urlencoded'}
-        )
-        with urllib.request.urlopen(req, timeout=15):
-            pass
-        mark_error_sent()
-    except Exception:
-        pass
 
 def load_dotenv():
     path = os.path.join(os.path.dirname(__file__), "..", ".env")
@@ -228,21 +185,33 @@ def load_dotenv():
                     if key not in os.environ:
                         os.environ[key.strip()] = val.strip()
 
-FORCE = '--force' in sys.argv
 
-def should_run_today():
-    now = time.gmtime()
-    weekday = now.tm_wday
-    hour = now.tm_hour
-    if weekday not in (6, 1, 4):
-        return False
-    if hour < 13:
-        return False
-    return True
+def generate_and_send(token, chat_id):
+    filepath = os.path.join(tempfile.gettempdir(), "ningun_periodo.xlsx")
+    try:
+        download_excel(filepath)
+    except Exception as e:
+        send_message(token, chat_id, f"*⚠️ Error:* No pude descargar el Excel: {e}")
+        return
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
+        ws = wb[SHEET_NAME]
+        merged = parse_sections(ws)
+        currencies = parse_currency(ws)
+        wb.close()
+    except Exception as e:
+        send_message(token, chat_id, f"*⚠️ Error:* No pude leer el Excel: {e}")
+        return
+    if not merged:
+        send_message(token, chat_id, "*⚠️ Error:* No encontré secciones de no-muertos en el Excel.")
+        return
+    message = build_message(merged, currencies, read_ganancia())
+    status = send_message(token, chat_id, message)
+    print(f"Periodo enviado, response: {status}")
+
 
 def main():
-    if not FORCE and not should_run_today():
-        return
     load_dotenv()
     token = os.environ.get('TELEGRAM_TOKEN')
     chat_id = os.environ.get('TELEGRAM_CHAT_ID')
@@ -250,40 +219,30 @@ def main():
         print("Faltan TELEGRAM_TOKEN o TELEGRAM_CHAT_ID", file=sys.stderr)
         sys.exit(1)
 
-    filepath = os.path.join(tempfile.gettempdir(), "ningun.xlsx")
-    try:
-        download_excel(filepath)
-    except Exception as e:
-        msg = f"No pude descargar el Excel: {e}"
-        print(msg, file=sys.stderr)
-        send_error_alert(token, chat_id, msg)
-        sys.exit(1)
+    offset = 0
+    print("🤖 Periodo Bot iniciado. Escuchando /periodo o !periodo...")
+    while True:
+        try:
+            url = f"https://api.telegram.org/bot{token}/getUpdates?offset={offset}&timeout=60"
+            updates = fetch_json(url)
+            for upd in updates.get('result', []):
+                offset = upd['update_id'] + 1
+                msg = upd.get('message')
+                if not msg:
+                    continue
+                text = (msg.get('text') or '').strip().lower()
+                if text in ('/periodo', '!periodo'):
+                    print(f"Comando recibido de {msg['from'].get('username', '?')}")
+                    send_message(token, msg['chat']['id'], "⏳ Generando periodo...")
+                    generate_and_send(token, msg['chat']['id'])
+                    print("✅ Periodo enviado.")
+        except KeyboardInterrupt:
+            print("Bot detenido.")
+            break
+        except Exception as e:
+            print(f"Error en polling: {e}", file=sys.stderr)
+            time.sleep(5)
 
-    try:
-        wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
-        ws = wb[SHEET_NAME]
-
-        merged = parse_sections(ws)
-        currencies = parse_currency(ws)
-        wb.close()
-    except Exception as e:
-        msg = f"No pude leer el Excel (cambio de estructura?): {e}"
-        print(msg, file=sys.stderr)
-        send_error_alert(token, chat_id, msg)
-        sys.exit(1)
-
-    if not merged:
-        msg = "No encontré ninguna sección de no-muertos en el Excel. ¿Cambiaste la estructura?"
-        print(msg, file=sys.stderr)
-        send_error_alert(token, chat_id, msg)
-        sys.exit(1)
-
-    message = build_message(merged, currencies, read_ganancia())
-    print("Mensaje generado:")
-    print(message)
-
-    status = send_telegram(token, chat_id, message)
-    print(f"Telegram response: {status}")
 
 if __name__ == '__main__':
     main()
