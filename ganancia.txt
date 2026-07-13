@@ -1,5 +1,8 @@
+-yo-
 + 2 Defensor Apostata
 + 1 Bibliotecario Apostata
 + 1 Esqueleto Arquero
+-Radija-
++ 7 Necromites
 --- Dinero ---
 + 25 Oro
