@@ -1,8 +1,11 @@
 -yo-
-+ 2 Defensor Apostata
-+ 1 Bibliotecario Apostata
-+ 1 Esqueleto Arquero
++ 4 Defensor Apostata
 -Radija-
-+ 7 Necromites
++ 2 Necromites
+
++ 1 Esqueleto Trabajador
++ 2 Esqueleto Sepulturero
++ 2 Esquelto Ballestero
++ 2 Defensores Apostatas
 --- Dinero ---
 + 25 Oro
