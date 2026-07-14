@@ -16,9 +16,9 @@ SHEET_NAME = " Nigun Grid Luin"
 
 SECTIONS = {
     'Guardia de No Muertos': 'guardia',
-    'Apostatas de Myrkull': 'apostatas',
-    'Basura': 'basura',
-    'Mis Levantados': 'levantados',
+    'Mis Levantados en el Libro': 'levantados',
+    'No muertos de Radija': 'radija',
+    'Muertos con ordenes permanentes': 'permanentes',
 }
 
 SKIP_NAMES = {'Total'}
@@ -40,31 +40,39 @@ def is_valid_number(v):
     return isinstance(v, (int, float)) and not math.isnan(v)
 
 def parse_sections(ws):
-    section_data = {'guardia': [], 'apostatas': [], 'basura': [], 'levantados': []}
+    merged = {}
     current_section = None
+
+    col_pairs = [(22, 23), (28, 29)]
 
     for row in ws.iter_rows(min_row=1, values_only=True):
         row_list = list(row)
-        c23 = row_list[22] if len(row_list) > 22 else None
-        c23_str = str(c23).strip() if c23 is not None else None
+        c22 = str(row_list[22]).strip() if len(row_list) > 22 and row_list[22] is not None else ''
+        c28 = str(row_list[28]).strip() if len(row_list) > 28 and row_list[28] is not None else ''
 
-        if c23_str in SECTIONS:
-            current_section = SECTIONS[c23_str]
+        found_section = None
+        if c22 in SECTIONS:
+            found_section = SECTIONS[c22]
+        elif c28 in SECTIONS:
+            found_section = SECTIONS[c28]
+
+        if found_section is not None:
+            current_section = found_section
             continue
 
         if current_section is None:
             continue
 
-        if is_valid_number(c23):
-            qty = int(c23)
-            name = str(row_list[23]).strip() if len(row_list) > 23 and row_list[23] is not None else ''
-            if name not in SKIP_NAMES and name:
-                section_data[current_section].append((qty, name))
-
-    merged = {}
-    for section in section_data.values():
-        for qty, name in section:
-            merged[name] = merged.get(name, 0) + qty
+        for qty_col, name_col in col_pairs:
+            if len(row_list) <= qty_col or len(row_list) <= name_col:
+                continue
+            qty_val = row_list[qty_col]
+            name_val = row_list[name_col]
+            if is_valid_number(qty_val):
+                qty = int(qty_val)
+                name = str(name_val).strip() if name_val is not None else ''
+                if name not in SKIP_NAMES and name:
+                    merged[name] = merged.get(name, 0) + qty
 
     return merged
 
