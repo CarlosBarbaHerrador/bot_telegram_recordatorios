@@ -3,9 +3,7 @@
 -Radija-
 + 2 Necromites
 
-+ 1 Esqueleto Trabajador
-+ 2 Esqueleto Sepulturero
-+ 2 Esquelto Ballestero
-+ 2 Defensores Apostatas
++ 7 Esquelto Ballestero
+
 --- Dinero ---
 + 25 Oro
