@@ -23,6 +23,7 @@ SECTIONS = {
 
 SKIP_NAMES = {'Total'}
 CURRENCY_KEYWORDS = {'Oro', 'Plata', 'Bronce'}
+SECTION_PREFIX = 'No muertos de '
 
 
 def fetch_json(url):
@@ -45,41 +46,35 @@ def is_valid_number(v):
     return isinstance(v, (int, float)) and not math.isnan(v)
 
 
+def is_section_header(value):
+    if value in SECTIONS:
+        return True
+    return value.startswith(SECTION_PREFIX)
+
+
 def parse_sections(ws):
     import openpyxl
     merged = {}
-    current_section = None
-
-    col_pairs = [(22, 23), (28, 29)]
+    active_cols = set()
 
     for row in ws.iter_rows(min_row=1, values_only=True):
         row_list = list(row)
-        c22 = str(row_list[22]).strip() if len(row_list) > 22 and row_list[22] is not None else ''
-        c28 = str(row_list[28]).strip() if len(row_list) > 28 and row_list[28] is not None else ''
 
-        found_section = None
-        if c22 in SECTIONS:
-            found_section = SECTIONS[c22]
-        elif c28 in SECTIONS:
-            found_section = SECTIONS[c28]
+        for col_idx, cell in enumerate(row_list):
+            if cell is not None and isinstance(cell, str) and is_section_header(cell.strip()):
+                active_cols.add(col_idx)
 
-        if found_section is not None:
-            current_section = found_section
-            continue
-
-        if current_section is None:
-            continue
-
-        for qty_col, name_col in col_pairs:
-            if len(row_list) <= qty_col or len(row_list) <= name_col:
+        for sec_col in list(active_cols):
+            if len(row_list) <= sec_col + 1:
                 continue
-            qty_val = row_list[qty_col]
-            name_val = row_list[name_col]
-            if is_valid_number(qty_val):
+            qty_val = row_list[sec_col]
+            name_val = row_list[sec_col + 1]
+            name = str(name_val).strip() if name_val is not None else ''
+            if name in SKIP_NAMES and is_valid_number(qty_val):
+                active_cols.discard(sec_col)
+            elif is_valid_number(qty_val) and name:
                 qty = int(qty_val)
-                name = str(name_val).strip() if name_val is not None else ''
-                if name not in SKIP_NAMES and name:
-                    merged[name] = merged.get(name, 0) + qty
+                merged[name] = merged.get(name, 0) + qty
 
     return merged
 
