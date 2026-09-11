@@ -1,9 +1,9 @@
 -yo-
-+ 4 Defensor Apostata
--Radija-
-+ 2 Necromites
++ 20 Defensores Apostata
+-Cultistas-
 
-+ 7 Esquelto Ballestero
++ 17 Centinela Apostata
++ 6 Necromites
 
 --- Dinero ---
 + 25 Oro
