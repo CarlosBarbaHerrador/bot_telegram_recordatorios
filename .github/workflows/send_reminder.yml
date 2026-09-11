@@ -2,7 +2,7 @@ name: Recordatorio Periodo
 
 on:
   schedule:
-    - cron: '0 9,15 * * *'
+    - cron: '0 9,15,21 * * *'
   workflow_dispatch:
     inputs:
       force:
