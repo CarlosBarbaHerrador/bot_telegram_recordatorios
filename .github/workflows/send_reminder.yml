@@ -2,7 +2,7 @@ name: Recordatorio Periodo
 
 on:
   schedule:
-    - cron: '0 10 * * 0,2,5'
+    - cron: '30 13 * * 0,2,5'
   workflow_dispatch:
     inputs:
       force:
