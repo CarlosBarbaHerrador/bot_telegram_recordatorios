@@ -1,9 +1,15 @@
 -yo-
-+ 20 Defensores Apostata
--Cultistas-
+ +1 Bibliotecario Apostata
++ 3 Defensores Apostatas
 
-+ 17 Centinela Apostata
-+ 6 Necromites
+-Radija
++ 7 Centinelas Apostatas (Ballesta)
++ 2 Necormites
+
+-Cultistas-
++ 10 Destructores Apostatas
++ 12 Necromites
++ 8 Centinelas Apostatas (Ballesta)
 
 --- Dinero ---
 + 25 Oro
