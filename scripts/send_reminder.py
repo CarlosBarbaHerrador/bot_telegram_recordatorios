@@ -233,10 +233,14 @@ def load_dotenv():
 
 FORCE = '--force' in sys.argv
 
+# Domingo=6, Martes=1, Viernes=4  (datetime.weekday())
+ALLOWED_DAYS = {1, 4, 6}
+
 def should_run_today():
-    now = time.gmtime()
-    hour = now.tm_hour
-    if hour < 9:
+    now = time.localtime()
+    if now.tm_wday not in ALLOWED_DAYS:
+        return False
+    if now.tm_hour < 9:
         return False
     return True
 
